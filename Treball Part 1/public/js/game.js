@@ -43,8 +43,8 @@ function startGame() {
     }
   }, 2000);
 
-  addNetStatsLabel();        // ← añade el marcador a la UI
-  startLatencyMonitor();     // ← empieza a medir el ping
+  addNetStatsLabel();        // añade el marcador a la UI
+  startLatencyMonitor();     // empieza a medir el ping
   unirseAlJoc();
 }
 
@@ -146,10 +146,11 @@ function updateGameArea() {
 
 // --- Alta en el juego ---
 function unirseAlJoc() {
-  fetch(`game.php?action=join&circle_x=${Math.round(circle.x)}&circle_y=${Math.round(circle.y)}`, {
+  fetch(`game.php?action=join&game_name=${encodeURIComponent(idJoc)}&circle_x=${Math.round(circle.x)}&circle_y=${Math.round(circle.y)}`, {
     method: 'GET',
     cache: 'no-store'
   })
+
     .then(r => r.json())
     .then(data => {
       idJoc = data.game_id;
@@ -191,7 +192,7 @@ function comprovarEstatDelJoc() {
         console.warn(joc.error);
         return;
       }
-       
+
 
       // Posiciones del otro jugador
       if (numJugador == 1) {
@@ -205,7 +206,7 @@ function comprovarEstatDelJoc() {
           Player1.y = Number(joc.player1_y);
         }
       }
-           // Círculo desde servidor
+      // Círculo desde servidor
       if (joc.circle_x !== null && joc.circle_y !== null) {
         circle.x = Number(joc.circle_x);
         circle.y = Number(joc.circle_y);
@@ -213,26 +214,26 @@ function comprovarEstatDelJoc() {
       } else {
         circle.visible = false;
       }
-      
+
       if (typeof joc.points_player1 !== "undefined" && typeof joc.points_player2 !== "undefined") {
-          p1_points = Number(joc.points_player1);
-          p2_points = Number(joc.points_player2);
-          document.getElementById("p1_score").innerText = p1_points;
-          document.getElementById("p2_score").innerText = p2_points;
-        }
-      
+        p1_points = Number(joc.points_player1);
+        p2_points = Number(joc.points_player2);
+        document.getElementById("p1_score").innerText = p1_points;
+        document.getElementById("p2_score").innerText = p2_points;
+      }
+
     })
     .catch(console.error);
-    
-    // Círculo desde servidor (autoridad)
-    if (joc.circle_x !== null && joc.circle_y !== null) {
-      circle.x = Number(joc.circle_x);
-      circle.y = Number(joc.circle_y);
-      circle.visible = true;
-    } else {
-      // servidor indica que no hay círculo activo
-      circle.visible = false;
-    }
+
+  // Círculo desde servidor (autoridad)
+  if (joc.circle_x !== null && joc.circle_y !== null) {
+    circle.x = Number(joc.circle_x);
+    circle.y = Number(joc.circle_y);
+    circle.visible = true;
+  } else {
+    // servidor indica que no hay círculo activo
+    circle.visible = false;
+  }
 }
 
 // --- Enviar movimiento sólo si cambió lo suficiente ---
@@ -278,30 +279,30 @@ document.addEventListener("keydown", function (event) {
 // --- Movimiento local ---
 function moveup() {
   if (numJugador === 1) {
-     if (Player1.speedY > -3) Player1.speedY -= 1.5;
+    if (Player1.speedY > -3) Player1.speedY -= 1.5;
   } else {
-     if (Player2.speedY > -3) Player2.speedY -= 1.5;
+    if (Player2.speedY > -3) Player2.speedY -= 1.5;
   }
 }
 function movedown() {
   if (numJugador === 1) {
-     if (Player1.speedY < 3) Player1.speedY += 1.5;
+    if (Player1.speedY < 3) Player1.speedY += 1.5;
   } else {
-     if (Player2.speedY < 3) Player2.speedY += 1.5;
+    if (Player2.speedY < 3) Player2.speedY += 1.5;
   }
 }
 function moveleft() {
   if (numJugador === 1) {
-     if (Player1.speedX > -3) Player1.speedX -= 1.5;
+    if (Player1.speedX > -3) Player1.speedX -= 1.5;
   } else {
-     if (Player2.speedX > -3) Player2.speedX -= 1.5;
+    if (Player2.speedX > -3) Player2.speedX -= 1.5;
   }
 }
 function moveright() {
   if (numJugador === 1) {
-     if (Player1.speedX < 3) Player1.speedX += 1.5;
+    if (Player1.speedX < 3) Player1.speedX += 1.5;
   } else {
-     if (Player2.speedX < 3) Player2.speedX += 1.5;
+    if (Player2.speedX < 3) Player2.speedX += 1.5;
   }
 }
 

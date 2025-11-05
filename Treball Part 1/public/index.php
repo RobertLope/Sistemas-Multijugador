@@ -47,6 +47,11 @@ require_once __DIR__ . '/captcha_guard.php';
 
 $templates = array("jugar", "crear_partida", "unir_partida");
 
+if (isset($_GET['page']) && in_array($_GET['page'], $templates) && empty($_SESSION['user'])) {
+    header('Location: ?page=home');
+    exit;
+}
+
 if (isset($_GET['page']) && $_GET['page'] === 'logout') {
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
@@ -267,7 +272,103 @@ if (isset($_GET['page']) && $_GET['page'] === 'logout') {
     }
 
 
-    // --- navegación por GET (mostrar vistas) ---
+    // navegación por GET (mostrar vistas)
+// crear partida
+} else if (isset($_POST['crear_partida'])) {
+
+    if (empty($_SESSION['user'])) {
+        header('Location: ?page=login');
+        exit;
+    }
+
+    $nom_partida = trim($_POST['nom_partida'] ?? '');
+    if ($nom_partida === '') {
+        $configuration['{FEEDBACK}'] = '<mark>ERROR: Has d\'introduir un nom de partida.</mark>';
+        $template = 'crear_partida';
+    } else {
+        try {
+            $db = new PDO('sqlite:../private/games.db');
+            $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $db->exec("PRAGMA journal_mode=WAL");
+            $db->exec("PRAGMA busy_timeout=5000");
+
+            // Comprobar si ya existe una partida con ese nombre
+            $stmt = $db->prepare('SELECT game_id FROM games WHERE name = :name');
+            $stmt->execute([':name' => $nom_partida]);
+            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($existing) {
+                $configuration['{FEEDBACK}'] = '<mark>ERROR: Ja existeix una partida amb aquest nom.</mark>';
+                $template = 'crear_partida';
+            } else {
+                // Crear la partida con ese nombre único
+                $game_id = bin2hex(random_bytes(8));
+                $player = $_SESSION['user'];
+
+                $stmt = $db->prepare('INSERT INTO games 
+                    (game_id, name, player1, player1_x, player1_y, player2_x, player2_y, circle_x, circle_y)
+                    VALUES (:id, :name, :p1, 0, 0, 0, 0, 0, 0)');
+                $stmt->execute([
+                    ':id' => $game_id,
+                    ':name' => $nom_partida,
+                    ':p1' => $player
+                ]);
+
+                header("Location: game.html?game_name=" . urlencode($nom_partida) . "&player=$player");
+                exit;
+            }
+        } catch (Exception $e) {
+            $configuration['{FEEDBACK}'] = "<mark>ERROR creant la partida: " . htmlentities($e->getMessage()) . "</mark>";
+            $template = 'crear_partida';
+        }
+    }
+
+
+
+// unir-se a partida 
+} else if (isset($_POST['unir_partida'])) {
+
+    if (empty($_SESSION['user'])) {
+        header('Location: ?page=login');
+        exit;
+    }
+
+    $nom_partida = trim($_POST['codi_partida'] ?? '');
+    if ($nom_partida === '') {
+        $configuration['{FEEDBACK}'] = '<mark>ERROR: Has d\'introduir el nom de la partida.</mark>';
+        $template = 'unir_partida';
+    } else {
+        try {
+            $db = new PDO('sqlite:../private/games.db');
+            $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $db->exec("PRAGMA journal_mode=WAL");
+            $db->exec("PRAGMA busy_timeout=5000");
+
+            $stmt = $db->prepare('SELECT * FROM games WHERE name = :name');
+            $stmt->execute([':name' => $nom_partida]);
+            $partida = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$partida) {
+                $configuration['{FEEDBACK}'] = '<mark>ERROR: No existeix cap partida amb aquest nom.</mark>';
+                $template = 'unir_partida';
+            } elseif (!empty($partida['player2'])) {
+                $configuration['{FEEDBACK}'] = '<mark>ERROR: Aquesta partida ja està plena.</mark>';
+                $template = 'unir_partida';
+            } else {
+                $player = $_SESSION['user'];
+                $stmt = $db->prepare('UPDATE games SET player2 = :p2 WHERE name = :name');
+                $stmt->execute([':p2' => $player, ':name' => $nom_partida]);
+
+                header("Location: game.html?game_name=" . urlencode($nom_partida) . "&player=$player");
+                exit;
+            }
+        } catch (Exception $e) {
+            $configuration['{FEEDBACK}'] = "<mark>ERROR unint-se a la partida: " . htmlentities($e->getMessage()) . "</mark>";
+            $template = 'unir_partida';
+        }
+    }
+
+    
 } else if (isset($_GET['page'])) {
 
     if ($_GET['page'] == 'register') {

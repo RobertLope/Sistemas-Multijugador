@@ -12,7 +12,8 @@ header('Pragma: no-cache');
 
 
 // Helper para leer parámetros tanto de GET como de POST
-function inparam($key, $default = null) {
+function inparam($key, $default = null)
+{
     return $_POST[$key] ?? $_GET[$key] ?? $default;
 }
 
@@ -38,86 +39,111 @@ $accio = inparam('action', '');
 switch ($accio) {
     case 'join': {
         // Re-asignar/crear id de jugador en sesión si no existe
-        if (!$player_session_id) {
-            session_start();
-            $_SESSION['player_id'] = bin2hex(random_bytes(8)); // id más robusto
-            $player_session_id = $_SESSION['player_id'];
-            session_write_close();
-        }
+        session_start();
+        $player_id = $_SESSION['user'] ?? $_SESSION['player_id'] ?? null;
 
-        $player_id = $player_session_id;
+        // Si no hay usuario logueado, usa un ID temporal (modo invitado)
+        if (!$player_id) {
+            $_SESSION['player_id'] = bin2hex(random_bytes(8));
+            $player_id = $_SESSION['player_id'];
+        }
+        session_write_close();
+
+
         $game_id = null;
         $numJugador = 0;
         $circle_x = (int) inparam('circle_x', 0);
         $circle_y = (int) inparam('circle_y', 0);
 
         // Intentar unirse a un juego esperando jugador 2
-        $stmt = $db->prepare('SELECT * FROM games WHERE player2 IS NULL LIMIT 1');
+        $game_name = inparam('game_name', null);
+        if ($game_name) {
+            $stmt = $db->prepare('SELECT * FROM games WHERE name = :name');
+            $stmt->execute([':name' => $game_name]);
+
+        } else {
+            echo json_encode(['error' => 'Falta el nom de la partida']);
+            exit;
+
+        }
+
         $stmt->execute();
         $joc_existent = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($joc_existent) {
-            $numJugador = 2;
             $game_id = $joc_existent['game_id'];
-            // tomar círculo actual del juego existente
             $circle_x = (int) $joc_existent['circle_x'];
             $circle_y = (int) $joc_existent['circle_y'];
 
-            $stmt = $db->prepare('UPDATE games SET player2 = :player_id WHERE game_id = :game_id');
-            $stmt->execute([':player_id' => $player_id, ':game_id' => $game_id]);
+            // Comprobar si el jugador ya está dentro
+            if ($joc_existent['player1'] === $player_id) {
+                // ya es el jugador 1
+                $numJugador = 1;
+            } elseif (empty($joc_existent['player2'])) {
+                // asignar como jugador 2
+                $numJugador = 2;
+                $stmt = $db->prepare('UPDATE games SET player2 = :player_id WHERE game_id = :game_id');
+                $stmt->execute([':player_id' => $player_id, ':game_id' => $game_id]);
+            } elseif ($joc_existent['player2'] === $player_id) {
+                // ya era el jugador 2 (reconexión)
+                $numJugador = 2;
+            } else {
+                echo json_encode(['error' => 'La partida ya está completa']);
+                exit;
+            }
         } else {
             // crear nuevo juego como jugador 1
-            $numJugador = 1;
-            $game_id = bin2hex(random_bytes(8));
-            $stmt = $db->prepare('INSERT INTO games (game_id, player1, circle_x, circle_y, player1_x, player1_y, player2_x, player2_y) 
-                                  VALUES (:game_id, :player_id, :cx, :cy, 0, 0, 0, 0)');
-            $stmt->execute([
-                ':game_id'  => $game_id,
-                ':player_id'=> $player_id,
-                ':cx'       => $circle_x,
-                ':cy'       => $circle_y
-            ]);
+            // $numJugador = 1;
+            // $game_id = bin2hex(random_bytes(8));
+            // $stmt = $db->prepare('INSERT INTO games (game_id, player1, circle_x, circle_y, player1_x, player1_y, player2_x, player2_y) 
+            //                       VALUES (:game_id, :player_id, :cx, :cy, 0, 0, 0, 0)');
+            // $stmt->execute([
+            //     ':game_id' => $game_id,
+            //     ':player_id' => $player_id,
+            //     ':cx' => $circle_x,
+            //     ':cy' => $circle_y
+            // ]);
         }
 
         echo json_encode([
-            'game_id'     => $game_id,
-            'player_id'   => $player_id,
+            'game_id' => $game_id,
+            'player_id' => $player_id,
             'num_jugador' => $numJugador,
-            'circle_x'    => $circle_x,
-            'circle_y'    => $circle_y
+            'circle_x' => $circle_x,
+            'circle_y' => $circle_y
         ]);
         exit;
     }
 
     case 'status': {
-    $game_id = inparam('game_id', '');
-    if ($game_id === '') {
-        echo json_encode(['error' => 'Falta game_id']);
+        $game_id = inparam('game_id', '');
+        if ($game_id === '') {
+            echo json_encode(['error' => 'Falta game_id']);
+            exit;
+        }
+
+        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id');
+        $stmt->execute([':game_id' => $game_id]);
+        $joc = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$joc) {
+            echo json_encode(['error' => 'Joc no trobat']);
+            exit;
+        }
+
+        echo json_encode([
+            'ok' => 'todo ok',
+            'player1_x' => $joc['player1_x'],
+            'player1_y' => $joc['player1_y'],
+            'player2_x' => $joc['player2_x'],
+            'player2_y' => $joc['player2_y'],
+            'circle_x' => $joc['circle_x'],
+            'circle_y' => $joc['circle_y'],
+            'points_player1' => (int) ($joc['points_player1'] ?? 0),
+            'points_player2' => (int) ($joc['points_player2'] ?? 0)
+        ]);
         exit;
     }
-
-    $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id');
-    $stmt->execute([':game_id' => $game_id]);
-    $joc = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$joc) {
-        echo json_encode(['error' => 'Joc no trobat']);
-        exit;
-    }
-
-    echo json_encode([
-        'ok'             => 'todo ok',
-        'player1_x'      => $joc['player1_x'],
-        'player1_y'      => $joc['player1_y'],
-        'player2_x'      => $joc['player2_x'],
-        'player2_y'      => $joc['player2_y'],
-        'circle_x'       => $joc['circle_x'],
-        'circle_y'       => $joc['circle_y'],
-        'points_player1' => (int)($joc['points_player1'] ?? 0),
-        'points_player2' => (int)($joc['points_player2'] ?? 0)
-    ]);
-    exit;
-}
 
 
     case 'movement': {
@@ -156,7 +182,7 @@ switch ($accio) {
     }
 
     case 'actualizarCirculo': {
-        $game_id  = inparam('game_id', '');
+        $game_id = inparam('game_id', '');
         $circle_x = (int) inparam('circle_x', 0);
         $circle_y = (int) inparam('circle_y', 0);
 
@@ -197,7 +223,7 @@ switch ($accio) {
         exit;
     }
 
-        // --- sumar punto y eliminar círculo ---
+    // --- sumar punto y eliminar círculo ---
     case 'add_point': {
         $game_id = inparam('game_id', '');
         $player_id = $player_session_id;
@@ -235,8 +261,8 @@ switch ($accio) {
 
         echo json_encode([
             'ok' => 1,
-            'p1_points' => (int)$p['points_player1'],
-            'p2_points' => (int)$p['points_player2']
+            'p1_points' => (int) $p['points_player1'],
+            'p2_points' => (int) $p['points_player2']
         ]);
         exit;
     }

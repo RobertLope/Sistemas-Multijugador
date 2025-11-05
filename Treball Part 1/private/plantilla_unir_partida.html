@@ -12,9 +12,10 @@
         <p>{FEEDBACK}</p>
     </header>
     <section>
-        <form method="POST" action="?page=jugar">
+        <form method="POST" action="?page=unir_partida">
             <label>Codi de la partida:</label>
             <input type="text" name="codi_partida" required>
+            <input type="hidden" name="unir_partida" value="1">
             <input type="submit" value="Unir-me">
         </form>
         <a href="?page=jugar">Tornar</a>
