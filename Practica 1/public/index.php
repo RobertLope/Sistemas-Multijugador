@@ -145,7 +145,7 @@ if (isset($_GET['page']) && $_GET['page'] === 'logout') {
     $query->execute();
     $user = $query->fetch(PDO::FETCH_ASSOC);
 
-    // Si l'usuari existeix, generem i enviem codi de reset
+    // Si l'usuari existeix, generem i enviem codi de resetrs
     if ($user) {
         // Generem codig aleatori de 6 digits
         $resetCode = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
