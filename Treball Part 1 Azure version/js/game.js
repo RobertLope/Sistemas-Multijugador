@@ -5,6 +5,9 @@ let idJoc = null;
 let idJugador = null;
 let numJugador = null;
 
+let joinTime = null;   // instante en el que este cliente sabe qué jugador es
+
+
 let Player1;
 let Player2;
 
@@ -25,10 +28,30 @@ const MOVE_EPS = 1.5;          // umbral de cambio
 let lastSentX = null;
 let lastSentY = null;
 
+// --- Sprites de los jugadores ---
+const player1Sprites = [];
+const player2Sprites = [];
+
+// Cargamos frames 0..8 para cada jugador
+for (let i = 0; i <= 8; i++) {
+  const img1 = new Image();
+  img1.src = `img/megaman_run_${i}.png`;
+  player1Sprites.push(img1);
+
+  const img2 = new Image();
+  img2.src = `img/2megaman_run_${i}.png`;
+  player2Sprites.push(img2);
+}
+
+// --- Sprite de la pelota ---
+const ballImage = new Image();
+ballImage.src = "img/ball.png";   // cambia el nombre si tu PNG se llama distinto
+
+
 // --- Inicio del juego ---
 function startGame() {
-  Player1 = new component(30, 30, "red", 10, 120);
-  Player2 = new component(30, 30, "blue", 300, 120);
+  Player1 = new component(30, 30, "red", 10, 120, false);
+  Player2 = new component(30, 30, "blue", 300, 120, true);
 
   myGameArea.start();
 
@@ -64,18 +87,69 @@ const myGameArea = {
 };
 
 // --- Entidad base ---
-function component(width, height, color, x, y) {
+function component(width, height, color, x, y, isPlayer2 = false) {
   this.width = width;
   this.height = height;
   this.speedX = 0;
   this.speedY = 0;
   this.x = x;
   this.y = y;
+
+  // Animación
+  this.sprites = isPlayer2 ? player2Sprites : player1Sprites;
+  this.frameIndex = 0;      // 0 = idle, 1..8 = correr
+  this.frameTimer = 0;      // ms acumulados para cambiar de frame
+  this.facing = 1;          // 1 = derecha, -1 = izquierda
+
+  this.updateAnimation = function (dtMs) {
+    const moving = (this.speedX !== 0 || this.speedY !== 0);
+
+    // Dirección según movimiento horizontal
+    if (this.speedX > 0) this.facing = 1;
+    else if (this.speedX < 0) this.facing = -1;
+
+    if (moving) {
+      // Ciclo entre 1 y 8 cuando se mueve
+      this.frameTimer += dtMs;
+      if (this.frameTimer > 80) { // cambiar cada 80 ms aprox.
+        this.frameTimer = 0;
+        this.frameIndex++;
+        if (this.frameIndex > 8) this.frameIndex = 1;
+      }
+    } else {
+      // Quieto → frame 0
+      this.frameIndex = 0;
+      this.frameTimer = 0;
+    }
+  };
+
   this.update = function () {
     const ctx = myGameArea.context;
-    ctx.fillStyle = color;
-    ctx.fillRect(this.x, this.y, this.width, this.height);
+
+    const spritesOk = this.sprites && this.sprites.length > 0 && this.sprites[0].complete;
+    if (spritesOk) {
+      const img = this.sprites[this.frameIndex] || this.sprites[0];
+
+      ctx.save();
+      // Si mira a la derecha, dibujamos normal.
+      // Si mira a la izquierda, escalamos en X = -1 y compensamos la posición.
+      if (this.facing === 1) {
+        ctx.translate(this.x, this.y);
+        ctx.scale(1, 1);
+      } else {
+        ctx.translate(this.x + this.width, this.y); // origen al borde derecho
+        ctx.scale(-1, 1);
+      }
+
+      ctx.drawImage(img, 0, 0, this.width, this.height);
+      ctx.restore();
+    } else {
+      // Fallback: si aún no han cargado las imágenes, dibujar un rectángulo
+      ctx.fillStyle = color;
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
   };
+
   this.newPos = function () {
     this.x += this.speedX;
     this.y += this.speedY;
@@ -91,16 +165,47 @@ function component(width, height, color, x, y) {
   };
 }
 
+
 // --- Bucle de render ---
 function updateGameArea() {
   myGameArea.clear();
 
+  const ctx = myGameArea.context;
+  const dt = 20; // intervalo del setInterval
+
+  // Actualizar animación
+  if (Player1 && Player1.updateAnimation) Player1.updateAnimation(dt);
+  if (Player2 && Player2.updateAnimation) Player2.updateAnimation(dt);
+
+  // Movimiento y dibujado de jugadores
   Player1.newPos();
   Player1.update();
 
   Player2.newPos();
   Player2.update();
 
+  // ==== MARCA VISUAL DEL JUGADOR LOCAL ====
+  // usamos == para que funcione si numJugador es "1"/"2" (string) o número
+  if (numJugador == 1 || numJugador == 2) {
+    const pl = (numJugador == 1) ? Player1 : Player2;
+
+    // Recuadro alrededor de tu personaje
+    ctx.save();
+    ctx.strokeStyle = 'yellow';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(pl.x - 4, pl.y - 4, pl.width + 8, pl.height + 8);
+    ctx.restore();
+
+    // Texto "TÚ" encima de tu personaje
+    ctx.save();
+    ctx.fillStyle = 'yellow';
+    ctx.font = '14px Arial';
+    ctx.fillText('TÚ', pl.x + pl.width / 2 - 10, pl.y - 10);
+    ctx.restore();
+  }
+  // ========================================
+
+  // Círculo
   drawCircle();
 
   // Colisiones y puntos (local)
@@ -124,11 +229,18 @@ function updateGameArea() {
   }
 
   // Pintar puntuación
-  const ctx = myGameArea.context;
   ctx.fillStyle = "black";
   ctx.font = "16px Arial";
   ctx.fillText("P1: " + p1_points, 10, 20);
   ctx.fillText("P2: " + p2_points, 400, 20);
+
+  // Info de qué jugador eres
+  if (numJugador == 1 || numJugador == 2) {
+    ctx.fillStyle = "orange";
+    ctx.font = "14px Arial";
+    const lado = (numJugador == 1) ? "izquierda" : "derecha";
+    ctx.fillText(`Tú eres J${numJugador} (${lado})`, 10, 40);
+  }
 
   // Condición de victoria local
   if (p1_points >= 10 || p2_points >= 10) {
@@ -143,6 +255,7 @@ function updateGameArea() {
     ctx.fillText(winner, 120, 140);
   }
 }
+
 
 // --- Alta en el juego ---
 function unirseAlJoc() {
@@ -163,6 +276,10 @@ function unirseAlJoc() {
         circle.y = Number(data.circle_y);
         circle.visible = true;
       }
+
+      // Marca el momento de unión y muestra info
+      joinTime = Date.now();
+      mostrarInfoJugador();   // <-- nueva función
 
       // Arrancar bucles de red
       arrancarRed();
@@ -364,15 +481,33 @@ function enviarPuntoAlServidor() {
     })
     .catch(console.error);
 }
+
 function drawCircle() {
-  if (circle && circle.visible) {
-    const ctx = myGameArea.context;
+  if (!circle || !circle.visible) return;
+
+  const ctx = myGameArea.context;
+
+  // tamaño de la pelota (diámetro = 2 * radius)
+  const size = circle.radius * 2;
+
+  if (ballImage.complete) {
+    // dibujamos la imagen centrada en (circle.x, circle.y)
+    ctx.drawImage(
+      ballImage,
+      circle.x - size / 2,
+      circle.y - size / 2,
+      size,
+      size
+    );
+  } else {
+    // fallback mientras carga la imagen
     ctx.beginPath();
     ctx.arc(circle.x, circle.y, circle.radius, 0, 2 * Math.PI);
     ctx.fillStyle = "black";
     ctx.fill();
   }
 }
+
 
 function checkCollision(player) {
   if (!circle.visible) return false;
@@ -400,6 +535,32 @@ function addNetStatsLabel() {
   lbl.textContent = 'RTT: — ms';
   document.body.appendChild(lbl);
 }
+
+function mostrarInfoJugador() {
+  const info = document.createElement('div');
+  info.id = 'player_info';
+  info.style.position = 'absolute';
+  info.style.top = '10px';
+  info.style.left = '50%';
+  info.style.transform = 'translateX(-50%)';
+  info.style.padding = '6px 12px';
+  info.style.background = 'rgba(0,0,0,0.75)';
+  info.style.color = '#fff';
+  info.style.borderRadius = '8px';
+  info.style.font = '14px Arial, sans-serif';
+  info.style.zIndex = '1000';
+
+  const lado = (numJugador === 1) ? 'izquierda' : 'derecha';
+  info.textContent = `Eres el Jugador ${numJugador}. Controlas al Megaman de la ${lado}.`;
+
+  document.body.appendChild(info);
+
+  // Quitar el mensaje después de 5 segundos
+  setTimeout(() => {
+    if (info.parentNode) info.parentNode.removeChild(info);
+  }, 5000);
+}
+
 
 
 let lastRttMs = null;
