@@ -17,16 +17,16 @@ namespace Unity.Networking.Transport.Samples
         void Start()
         {
 
-            m_Driver = NetworkDriver.Create();
+            //m_Driver = NetworkDriver.Create();
 
-            // Iniciem la pipeline per enviar missatges fragmentats i fiables
-            myPipeline = m_Driver.CreatePipeline(
-                typeof(FragmentationPipelineStage), typeof(ReliableSequencedPipelineStage));
+            //// Iniciem la pipeline per enviar missatges fragmentats i fiables
+            //myPipeline = m_Driver.CreatePipeline(
+            //    typeof(FragmentationPipelineStage), typeof(ReliableSequencedPipelineStage));
 
 
-            //var endpoint = NetworkEndpoint.LoopbackIpv4.WithPort(7777);
-            var endpoint = NetworkEndpoint.Parse(ip, port);
-            m_Connection = m_Driver.Connect(endpoint);
+            ////var endpoint = NetworkEndpoint.LoopbackIpv4.WithPort(7777);
+            //var endpoint = NetworkEndpoint.Parse(ip, port);
+            //m_Connection = m_Driver.Connect(endpoint);
         }
 
         void OnDestroy()
