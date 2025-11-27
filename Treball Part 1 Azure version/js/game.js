@@ -28,7 +28,7 @@ const NET_MOVE_HZ = 10;        // 10 Hz (cada 100 ms) es suficiente
 const NET_STATUS_HZ = 0.15;    // ~3 Hz para estado general
 const MOVE_EPS = 1.5;          // umbral de cambio
 
-const POLLING_SLOW_MS = 50;    // Polling lent (1 Hz) per a l'estat general (quan no et mous)
+const POLLING_SLOW_MS = 200;    // Polling lent (1 Hz) per a l'estat general (quan no et mous)
 const FAST_POLLING_DURATION = 500; // Temps (ms) que el polling ràpid es manté actiu després d'una tecla
 let pollingTimeout = null;       // Per gestionar el retorn al mode lent
 
