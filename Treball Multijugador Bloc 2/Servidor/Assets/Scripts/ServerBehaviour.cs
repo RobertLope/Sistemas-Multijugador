@@ -204,8 +204,17 @@ namespace Unity.Networking.Transport.Samples
                                 SendSelectionResponse(clientConnection, 'E', selectedChar);
                                 Debug.Log($"Selection ACCEPTED: {selectedChar} for {m_ClientInfo[clientConnection].Name}");
 
+
                                 //Notificar a *TODOS* los clientes sobre los nuevos disponibles
                                 SendAvailableCharactersToAll();
+
+
+                                // Empezar el juego para el cliente
+
+                                m_Driver.BeginSend(myPipeline, m_Connections[i], out var writer0);
+                                writer0.WriteByte((byte)'G');
+                                m_Driver.EndSend(writer0);
+
 
                                 if (AreAllReady())
                                 {

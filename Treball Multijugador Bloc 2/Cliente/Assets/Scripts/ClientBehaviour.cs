@@ -18,7 +18,17 @@ namespace Unity.Networking.Transport.Samples
         [SerializeField] private ushort port;
 
         bool isConnected = false;
+
+        public bool perro = false;
+
+        public  bool creeper = false;
+
+        string personajeSeleccionado = "";
+
         public static ClientBehaviour Instance;
+
+
+
 
 
 
@@ -146,7 +156,7 @@ namespace Unity.Networking.Transport.Samples
 
             Debug.Log($"Enviando selección al servidor: {characterName}");
 
-
+            personajeSeleccionado = characterName;
 
             m_Driver.BeginSend(myPipeline, m_Connection, out var writer);
 
@@ -210,7 +220,15 @@ namespace Unity.Networking.Transport.Samples
             string accepted = stream.ReadFixedString32().ToString();
             Debug.Log($"[E] Selección ACEPTADA: {accepted}");
 
+
             // Logica para seleccion aceptada
+
+
+            if (personajeSeleccionado == "Creeper")
+                creeper = true;
+            if (personajeSeleccionado == "Perro")
+                perro = true;
+
 
             // Consumir cualquier byte restante en el paquete
             while (stream.Length > stream.GetBytesRead())
@@ -226,6 +244,8 @@ namespace Unity.Networking.Transport.Samples
 
             // Logica para seleccion denegada
             //selectionSent = false;
+
+            personajeSeleccionado = "";
 
             // Consumir cualquier byte restante en el paquete
             while (stream.Length > stream.GetBytesRead())
