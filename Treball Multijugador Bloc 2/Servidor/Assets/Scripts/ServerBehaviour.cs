@@ -51,7 +51,7 @@ namespace Unity.Networking.Transport.Samples
             myPipeline = m_Driver.CreatePipeline(
                 typeof(FragmentationPipelineStage), typeof(ReliableSequencedPipelineStage));
 
-            var endpoint = NetworkEndpoint.AnyIpv4.WithPort(5003);
+            var endpoint = NetworkEndpoint.AnyIpv4.WithPort(5002);
 
 
             string serverIP = GetLocalIPAddress();
@@ -162,6 +162,12 @@ namespace Unity.Networking.Transport.Samples
 
                             Debug.Log($"Missatge per defecte del client '{messageID}'");
 
+                            if (stream.Length > stream.GetBytesRead())
+                            {
+                                stream.ReadUInt();
+                                Debug.Log("Consumido UInt pendiente de mensaje 'A'. Stream alineado.");
+                            }
+
                             //m_Driver.BeginSend(NetworkPipeline.Null, m_Connections[i], out var writer);
                             m_Driver.BeginSend(myPipeline, m_Connections[i], out var writer);
                             m_Driver.EndSend(writer);
@@ -177,6 +183,11 @@ namespace Unity.Networking.Transport.Samples
                             var selectedCharFS = stream.ReadFixedString32();
                             string selectedChar = selectedCharFS.ToString();
 
+                            while (stream.Length > stream.GetBytesRead())
+                            {
+                                stream.ReadByte();
+                            }
+
                             Debug.Log($"Client {m_ClientInfo[clientConnection].Name} tries to select: {selectedChar}");
 
                             // 2. Verificar la disponibilidad (Punto 5)
@@ -186,14 +197,14 @@ namespace Unity.Networking.Transport.Samples
                             {
                                 Debug.Log("Enviando mensaje de confirmación al cliente");
 
-                                // 3. ¡Selección ACEPTADA! (Punto 3b y 3c)
+                                //¡Selección ACEPTADA! 
                                 m_ClientSelections[clientConnection] = selectedChar; // Guardar la elección
 
-                                // 4. Enviar confirmación al cliente (Mensaje 'E')
+                                //Enviar confirmación al cliente 
                                 SendSelectionResponse(clientConnection, 'E', selectedChar);
                                 Debug.Log($"Selection ACCEPTED: {selectedChar} for {m_ClientInfo[clientConnection].Name}");
 
-                                // 5. Notificar a *TODOS* los clientes sobre los nuevos disponibles (Punto 5b)
+                                //Notificar a *TODOS* los clientes sobre los nuevos disponibles
                                 SendAvailableCharactersToAll();
 
                                 if (AreAllReady())
@@ -203,9 +214,8 @@ namespace Unity.Networking.Transport.Samples
                             }
                             else
                             {
-                                // 3. ¡Selección DENEGADA! (Punto 5c)
 
-                                // 4. Enviar denegación al cliente (Mensaje 'F')
+                                // Enviar denegación al cliente
                                 SendSelectionResponse(clientConnection, 'F', selectedChar);
                                 Debug.Log($"Selection DENIED: {selectedChar} is already taken.");
                             }

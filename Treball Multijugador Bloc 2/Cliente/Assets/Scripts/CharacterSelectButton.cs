@@ -9,6 +9,7 @@ public class CharacterSelectButton : MonoBehaviour
 {
     public string characterName;
 
+
     public void OnSelect()
     {
         Debug.Log($"Cliente intenta seleccionar: {characterName}");

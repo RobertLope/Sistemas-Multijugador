@@ -20,6 +20,8 @@ namespace Unity.Networking.Transport.Samples
         bool isConnected = false;
         public static ClientBehaviour Instance;
 
+
+
         void Start()
         {
             if (Instance != null && Instance != this)
@@ -81,7 +83,6 @@ namespace Unity.Networking.Transport.Samples
 
                     m_Driver.BeginSend(myPipeline, m_Connection, out var writer);
                     writer.WriteByte((byte)'A');
-                    writer.WriteUInt(1);
                     m_Driver.EndSend(writer);
                 }
 
@@ -115,7 +116,7 @@ namespace Unity.Networking.Transport.Samples
 
                         case 'G':
                             Debug.Log("El servidor indica: ¡EMPIEZA EL JUEGO!");
-                            // SceneManager.LoadScene("EscenaJuego");
+                            SceneManager.LoadScene("EscenaJuego");
                             break;
 
                         default:
@@ -128,6 +129,7 @@ namespace Unity.Networking.Transport.Samples
                 {
                     Debug.LogError("Cliente desconectado del servidor.");
                     m_Connection = default;
+                    break;
                 }
             }
         }
@@ -143,6 +145,8 @@ namespace Unity.Networking.Transport.Samples
             }
 
             Debug.Log($"Enviando selección al servidor: {characterName}");
+
+
 
             m_Driver.BeginSend(myPipeline, m_Connection, out var writer);
 
@@ -168,6 +172,12 @@ namespace Unity.Networking.Transport.Samples
 
             float time = stream.ReadFloat();
 
+            // Consumir cualquier byte restante en el paquete
+            while (stream.Length > stream.GetBytesRead())
+            {
+                stream.ReadByte();
+            }
+
             Debug.Log($"[H] Servidor: {serverName} | Cliente: {clientName} | Anterior: {previousName} | Tiempo: {time}");
         }
 
@@ -176,12 +186,22 @@ namespace Unity.Networking.Transport.Samples
         {
             int count = stream.ReadInt();
             Debug.Log($"[D] {count} personajes disponibles:");
+            List<string> availableCharacters = new List<string>();
 
             for (int i = 0; i < count; i++)
             {
                 string ch = stream.ReadFixedString32().ToString();
+                availableCharacters.Add(ch);
                 Debug.Log($"   -> {ch}");
             }
+
+
+            // Consumir cualquier byte restante en el paquete
+            while (stream.Length > stream.GetBytesRead())
+            {
+                stream.ReadByte();
+            }
+
         }
 
 
@@ -191,6 +211,12 @@ namespace Unity.Networking.Transport.Samples
             Debug.Log($"[E] Selección ACEPTADA: {accepted}");
 
             // Logica para seleccion aceptada
+
+            // Consumir cualquier byte restante en el paquete
+            while (stream.Length > stream.GetBytesRead())
+            {
+                stream.ReadByte();
+            }
         }
 
         void HandleDeniedSelection(ref DataStreamReader stream)
@@ -199,6 +225,25 @@ namespace Unity.Networking.Transport.Samples
             Debug.LogError($"[F] Selección DENEGADA: {denied} ya está elegido.");
 
             // Logica para seleccion denegada
+            //selectionSent = false;
+
+            // Consumir cualquier byte restante en el paquete
+            while (stream.Length > stream.GetBytesRead())
+            {
+                stream.ReadByte();
+            }
+        }
+
+        public void SendHandshakeReady()
+        {
+            if (!m_Connection.IsCreated)
+                return;
+
+            Debug.Log("Enviando Handshake 'A' forzado tras carga de escena.");
+            m_Driver.BeginSend(myPipeline, m_Connection, out var writer);
+            writer.WriteByte((byte)'A');
+            writer.WriteUInt(1); // Mantenemos el UInt para evitar desalineación
+            m_Driver.EndSend(writer);
         }
 
 
