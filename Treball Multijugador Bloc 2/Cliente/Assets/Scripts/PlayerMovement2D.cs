@@ -1,16 +1,37 @@
+using TMPro;
+using Unity.Networking.Transport;
+using Unity.Networking.Transport.Samples;
+using Unity.Networking.Transport.Utilities;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class PlayerMovement2D : MonoBehaviour
 {
     public float speed = 100f;      // Velocidad horizontal
     public float jumpForce = 100f;  // Fuerza del salto
-
     Rigidbody2D rb;
     bool isGrounded = false;      // Para saber si est� tocando el suelo
 
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>(); // Obtenemos el Rigidbody2D del personaje
+    }
+
+    private void Start()
+    {
+        string nombreObjeto = gameObject.name;
+        if (ClientBehaviour.Instance.perro && nombreObjeto != "perroPersonaje") {
+            enabled = false;
+            return;
+
+        }
+
+        if (ClientBehaviour.Instance.creeper && nombreObjeto != "creeperPersonaje")
+        {
+            enabled = false;
+            return;
+
+        }
     }
 
     void Update()
