@@ -29,9 +29,10 @@ namespace Unity.Networking.Transport.Samples
 
 
 
-        public float posX = 0;
-        public float posY = 0;
-
+        public float posXPerro = 0;
+        public float posYPerro = 0;
+        public float posXCreeper = 0;
+        public float posYCreeper = 0;
 
 
 
@@ -299,16 +300,36 @@ namespace Unity.Networking.Transport.Samples
                 // CharacterName (FixedString32)
                 data.CharacterName = stream.ReadFixedString32().ToString();
 
-                // Position X (float)
-                float posicionX = stream.ReadFloat();
+                if (data.CharacterName == "Creeper")
+                {
+                    // Position X (float)
+                    float posicionXCreeper = stream.ReadFloat();
 
-                // Position Y (float)
-                float posicionY = stream.ReadFloat();
+                    // Position Y (float)
+                    float posicionYCreeper = stream.ReadFloat();
 
-                posX = posicionX;
-                posY = posicionY;
+                    posXPerro = posicionXCreeper;
+                    posYPerro = posicionYCreeper;
+                    data.Position = new Vector3(posXCreeper, posYCreeper, 0f); // Asumiendo Z=0 para 2D o plataformas
+                }
+                else if (data.CharacterName == "Perro")
+                {
+                    // Position X (float)
+                    float posicionXPerro = stream.ReadFloat();
 
-                data.Position = new Vector3(posX, posY, 0f); // Asumiendo Z=0 para 2D o plataformas
+                    // Position Y (float)
+                    float posicionYPerro = stream.ReadFloat();
+
+                    posXPerro = posicionXPerro;
+                    posYPerro = posicionYPerro;
+                    data.Position = new Vector3(posXPerro, posYPerro, 0f); // Asumiendo Z=0 para 2D o plataformas
+
+                }
+
+
+
+
+
 
                 spawnList.Add(data);
                 Debug.Log($"   -> Datos de Spawn: {data.CharacterName} en {data.Position}");
