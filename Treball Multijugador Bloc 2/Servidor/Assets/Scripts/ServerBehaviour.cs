@@ -7,12 +7,17 @@ using TMPro;
 using static UnityEngine.InputSystem.InputRemoting;
 using System.Net.Sockets;
 using System.Net;
+using UnityEngine.SceneManagement;
 
 
 namespace Unity.Networking.Transport.Samples
 {
     public class ServerBehaviour : MonoBehaviour
     {
+
+        public static ServerBehaviour Instance;
+
+
         NetworkDriver m_Driver;
         NativeList<NetworkConnection> m_Connections;
         NetworkPipeline myPipeline;
@@ -43,6 +48,20 @@ namespace Unity.Networking.Transport.Samples
 
         // Variable per guardar el client anterior
         string previousClientName = "";
+
+        private void Awake()
+        {
+            // 2. Implementar Singleton y DontDestroyOnLoad
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+
 
         void Start()
         {
@@ -343,6 +362,8 @@ namespace Unity.Networking.Transport.Samples
             m_Driver.EndSend(writer1);
 
             Debug.Log("GAME START: Sending 'G' message to all clients.");
+            SceneManager.LoadScene("EscenaJuego");
+            SendCharacterPositionsToAll();
         }
 
 
@@ -383,6 +404,62 @@ namespace Unity.Networking.Transport.Samples
             }
             // Si no encuentra una IP local válida, usa una dirección por defecto
             return "127.0.0.1";
+        }
+
+
+        void SendCharacterPositionsToAll()
+        {
+            // 1. Definir posiciones de aparición (hardcodeadas o generadas)
+            Vector2[] spawnPoints = { new Vector2(-5.0f, 0.0f), new Vector2(5.0f, 0.0f) };
+
+            // Crear la lista usando la estructura pública del GameManager
+            List<GameManager.CharacterSpawnData> spawnData = new List<GameManager.CharacterSpawnData>();
+
+            int i = 0;
+            foreach (var entry in m_ClientSelections)
+            {
+                if (i < spawnPoints.Length)
+                {
+                    // Llenar la estructura del GameManager
+                    GameManager.CharacterSpawnData data = new GameManager.CharacterSpawnData
+                    {
+                        CharacterName = entry.Value,
+                        Position = spawnPoints[i]
+                    };
+                    spawnData.Add(data);
+                    i++;
+                }
+            }
+
+            // 2. Enviar a cada cliente
+            for (int j = 0; j < m_Connections.Length; j++)
+            {
+                if (m_Connections[j].IsCreated)
+                {
+                    m_Driver.BeginSend(myPipeline, m_Connections[j], out var writer);
+
+                    writer.WriteByte((byte)'P'); // CÓDIGO 'P'
+                    writer.WriteInt(spawnData.Count); // CONTEO DE PERSONAJES
+
+                    foreach (var data in spawnData)
+                    {
+                        writer.WriteFixedString32(data.CharacterName);
+                        writer.WriteFloat(data.Position.x);
+                        writer.WriteFloat(data.Position.y);
+                    }
+                    
+                    m_Driver.EndSend(writer);
+                }
+            }
+            Debug.Log("Sent 'P' message with character positions to all clients.");
+
+            if (GameManager.Instance != null)
+            {
+                // En un servidor dedicado, el localPlayerName puede ser una cadena vacía ""
+                // En un Host, podrías pasar el nombre de un jugador si el host también es jugador.
+                GameManager.Instance.SpawnCharacters(spawnData, "");
+                Debug.Log("Spawned characters in local Server scene.");
+            }
         }
 
     }
