@@ -240,12 +240,45 @@ namespace Unity.Networking.Transport.Samples
                                     SendGameStartToAll();
                                 }
                             }
+
+
+
+
                             else
                             {
 
                                 // Enviar denegación al cliente
                                 SendSelectionResponse(clientConnection, 'F', selectedChar);
                                 Debug.Log($"Selection DENIED: {selectedChar} is already taken.");
+                            }
+                        }
+                        else if (messageID == 'M')
+                        {
+                            NetworkConnection senderConnection = m_Connections[i];
+
+                            // 1. Leer la posición (X, Y)
+                            float posX = stream.ReadFloat();
+                            float posY = stream.ReadFloat();
+
+                            while (stream.Length > stream.GetBytesRead())
+                            {
+                                stream.ReadByte();
+                            }
+
+                            Vector3 newPosition = new Vector3(posX, posY, 0f);
+
+                            // 2. Reenviar la posición a todos los demás clientes
+                            BroadcastMovement(senderConnection, newPosition);
+
+                            // 3. Actualizar la posición en la propia escena del Host
+                            if (GameManager.Instance != null)
+                            {
+                                // El Server necesita saber qué personaje está asociado a senderConnection
+                                string charName = m_ClientSelections.ContainsKey(senderConnection)
+                                                ? m_ClientSelections[senderConnection]
+                                                : "Unknown";
+
+                                GameManager.Instance.UpdateRemotePlayerPosition(charName, newPosition);
                             }
                         }
                     }
@@ -459,6 +492,42 @@ namespace Unity.Networking.Transport.Samples
                 // En un Host, podrías pasar el nombre de un jugador si el host también es jugador.
                 GameManager.Instance.SpawnCharacters(spawnData, "");
                 Debug.Log("Spawned characters in local Server scene.");
+            }
+        }
+
+        // Fragmento de ServerBehaviour.cs (NUEVO MÉTODO)
+
+        void BroadcastMovement(NetworkConnection sender, Vector3 position)
+        {
+            // 1. Obtener el nombre del personaje que se movió
+            string characterName = m_ClientSelections.ContainsKey(sender)
+                                 ? m_ClientSelections[sender]
+                                 : "";
+
+            if (string.IsNullOrEmpty(characterName))
+                return;
+
+            // 2. Enviar a todos (excepto al que lo envió)
+            for (int i = 0; i < m_Connections.Length; i++)
+            {
+                NetworkConnection recipient = m_Connections[i];
+
+                // No enviamos el paquete de vuelta al remitente original
+                if (recipient.IsCreated && recipient != sender)
+                {
+                    m_Driver.BeginSend(myPipeline, recipient, out var writer);
+
+                    writer.WriteByte((byte)'R'); // CÓDIGO 'R' (Movimiento Remoto)
+
+                    // ¿Quién se movió?
+                    writer.WriteFixedString32(characterName);
+
+                    // ¿A dónde se movió?
+                    writer.WriteFloat(position.x);
+                    writer.WriteFloat(position.y);
+
+                    m_Driver.EndSend(writer);
+                }
             }
         }
 

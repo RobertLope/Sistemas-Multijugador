@@ -129,6 +129,14 @@ namespace Unity.Networking.Transport.Samples
                             SceneManager.LoadScene("EscenaJuego");
                             break;
 
+                        case 'P': // <- ¡NUEVO CASO!
+                            HandleCharacterPositions(ref stream);
+                            break;
+
+                        case 'R': // <- ¡NUEVO CASO!
+                            HandleRemoteMovement(ref stream);
+                            break;
+
                         default:
                             Debug.LogWarning($"Mensaje desconocido: {messageID}");
                             break;
@@ -267,5 +275,103 @@ namespace Unity.Networking.Transport.Samples
         }
 
 
+        // Fragmento de ClientBehaviour.cs (Nuevo método)
+
+        void HandleCharacterPositions(ref DataStreamReader stream)
+        {
+            // Usamos la estructura pública definida en GameManager
+            List<GameManager.CharacterSpawnData> spawnList = new List<GameManager.CharacterSpawnData>();
+
+            // 1. Leer el conteo de personajes
+            int count = stream.ReadInt();
+            Debug.Log($"[P] Cliente recibió {count} posiciones de personajes.");
+
+            // 2. Leer la información de cada personaje
+            for (int i = 0; i < count; i++)
+            {
+                GameManager.CharacterSpawnData data = new GameManager.CharacterSpawnData();
+
+                // CharacterName (FixedString32)
+                data.CharacterName = stream.ReadFixedString32().ToString();
+
+                // Position X (float)
+                float posX = stream.ReadFloat();
+
+                // Position Y (float)
+                float posY = stream.ReadFloat();
+
+                data.Position = new Vector3(posX, posY, 0f); // Asumiendo Z=0 para 2D o plataformas
+
+                spawnList.Add(data);
+                Debug.Log($"   -> Datos de Spawn: {data.CharacterName} en {data.Position}");
+            }
+
+            // 3. Consumir cualquier byte restante en el paquete
+            while (stream.Length > stream.GetBytesRead())
+            {
+                stream.ReadByte();
+            }
+
+            // 4. Llamar al GameManager para crear los personajes en la escena
+            if (GameManager.Instance != null)
+            {
+                // Pasamos la lista de TODOS los personajes y el nombre del personaje LOCAL
+                GameManager.Instance.SpawnCharacters(spawnList, personajeSeleccionado);
+            }
+            else
+            {
+                Debug.LogError("Error: GameManager.Instance no está disponible para crear personajes.");
+            }
+        }
+
+
+        // Fragmento de ClientBehaviour.cs (NUEVO MÉTODO)
+
+        public void SendMovementUpdate(Vector3 position)
+        {
+            if (!m_Connection.IsCreated)
+            {
+                return;
+            }
+
+            m_Driver.BeginSend(myPipeline, m_Connection, out var writer);
+
+            // Código del mensaje 'M'
+            writer.WriteByte((byte)'M');
+
+            // Datos de Posición (X e Y)
+            writer.WriteFloat(position.x);
+            writer.WriteFloat(position.y);
+
+            // Podrías añadir Time.time para el timestamp, pero lo omitimos por simplicidad.
+
+            m_Driver.EndSend(writer);
+        }
+
+        // Fragmento de ClientBehaviour.cs (NUEVO MÉTODO)
+
+        void HandleRemoteMovement(ref DataStreamReader stream)
+        {
+            // 1. ¿Quién se movió?
+            string remoteCharacterName = stream.ReadFixedString32().ToString();
+
+            // 2. ¿A dónde se movió?
+            float posX = stream.ReadFloat();
+            float posY = stream.ReadFloat();
+            Vector3 newPosition = new Vector3(posX, posY, 0f);
+
+            while (stream.Length > stream.GetBytesRead())
+            {
+                stream.ReadByte();
+            }
+
+            Debug.Log($"[R] Jugador remoto '{remoteCharacterName}' se movió a {newPosition}");
+
+            // 3. Notificar al GameManager para que mueva el GameObject
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.UpdateRemotePlayerPosition(remoteCharacterName, newPosition);
+            }
+        }
     }
 }

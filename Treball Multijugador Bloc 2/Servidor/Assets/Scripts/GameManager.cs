@@ -68,6 +68,31 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Fragmento de GameManager.cs (NUEVO MÉTODO)
+
+    public void UpdateRemotePlayerPosition(string characterName, Vector3 position)
+    {
+        // Buscar el GameObject del personaje por su nombre
+        // NOTA: Esto asume que el GameObject del personaje tiene un script que almacena
+        // su nombre, o que el nombre del GameObject es único y coincide con characterName.
+
+        // Una forma simple (si los personajes son pocos y sabes sus nombres):
+        GameObject remotePlayer = GameObject.Find(characterName + "(Clone)"); // Asumiendo que usas (Clone)
+
+        if (remotePlayer != null)
+        {
+            // Simple teleport: lo mueve a la nueva posición
+            remotePlayer.transform.position = position;
+
+            // Si necesitas un movimiento más suave (interpolación):
+            // remotePlayer.GetComponent<RemoteMovementComponent>().targetPosition = position; 
+        }
+        else
+        {
+            Debug.LogWarning($"No se encontró el GameObject para el personaje remoto: {characterName}");
+        }
+    }
+
 
 
 }
