@@ -866,7 +866,7 @@ Rigidbody2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 778046759}
-  m_BodyType: 0
+  m_BodyType: 2
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
@@ -1476,8 +1476,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   perroPersonaje: {fileID: 778046759}
   creeperPersonaje: {fileID: 304547459}
-  characterPrefabs: []
-  LocalPlayerControlPrefab: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
